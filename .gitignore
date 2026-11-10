@@ -1,0 +1,7 @@
+﻿__pycache__/
+*.pyc
+.venv/
+soil-grain-size-from-photos/
+*.pth
+sub*.csv
+submission.csv
