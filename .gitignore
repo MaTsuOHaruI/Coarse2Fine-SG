@@ -1,7 +1,20 @@
-﻿__pycache__/
-*.pyc
-.venv/
+﻿# data and expensive outputs
+dataset/
 soil-grain-size-from-photos/
+*.zip
+data/
+cache/
+runs/
 *.pth
+*.pt
 sub*.csv
 submission.csv
+
+# python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
