@@ -6,7 +6,10 @@ from .metrics import clean_curve
 
 def blend(pB: np.ndarray, coarse, dc: float, cfg: Config) -> np.ndarray:
     """pB: Path B curve (11,), coarse: CoarseResult, dc: crossover [mm]."""
-    if not np.isfinite(dc) or coarse.mass.size == 0 or cfg.blend_mode == "pure_b":
+    if not np.isfinite(dc) or cfg.blend_mode == "pure_b":
+        return clean_curve(pB)
+    coarse = coarse.above(dc)                  # only grains resolved at the crossover count (n_eff too)
+    if coarse.mass.size == 0:
         return clean_curve(pB)
     i_c = int(np.where(SIEVES == dc)[0][0])
     F = pB[i_c]

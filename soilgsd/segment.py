@@ -1,5 +1,7 @@
-"""Segmentation back-ends. All return list[Region] for one (tile of a) photo."""
+"""Segmentation back-ends. All return list[Region] for one (tile of a) photo.
+Each segmenter has a `name`, used to key the on-disk mask cache (save_regions / load_regions)."""
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 import numpy as np
 import cv2
@@ -12,7 +14,44 @@ class Region:
 
 
 class Segmenter(Protocol):
+    name: str
     def segment(self, rgb: np.ndarray) -> list: ...
+
+
+def save_regions(path, regions: list) -> None:
+    """Write regions to one compressed .npz: bit-packed masks, their shapes and boxes."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shapes = np.array([r.mask.shape for r in regions], dtype=np.int64).reshape(-1, 2)
+    boxes = np.array([r.bbox for r in regions], dtype=np.int64).reshape(-1, 4)
+    bits = np.packbits(np.concatenate([r.mask.ravel() for r in regions])) if regions else np.zeros(0, np.uint8)
+    tmp = path.with_name(path.name + ".tmp.npz")         # write then rename: no half files if Colab stops
+    np.savez_compressed(tmp, shapes=shapes, boxes=boxes, bits=bits)
+    tmp.replace(path)
+
+
+def load_regions(path) -> list:
+    """Inverse of save_regions."""
+    z = np.load(path)
+    sizes = z["shapes"].prod(axis=1)
+    flat = np.unpackbits(z["bits"], count=int(sizes.sum())).astype(bool)
+    out, start = [], 0
+    for (h, w), box, n in zip(z["shapes"], z["boxes"], sizes):
+        out.append(Region(flat[start:start + n].reshape(h, w), tuple(int(v) for v in box)))
+        start += n
+    return out
+
+
+def make_segmenter(kind: str = "classical", checkpoint=None, device: str = "cpu",
+                   model_type: str = "vit_b", tile: int = 1024, overlap: int = 256):
+    """"classical" (CPU, no weights) or "sam" (needs a segment-anything checkpoint)."""
+    if kind == "classical":
+        return ClassicalSegmenter()
+    if kind == "sam":
+        if not checkpoint:
+            raise ValueError("SAM needs a checkpoint path (--sam-ckpt or sam.checkpoint in the config)")
+        return SamSegmenter(checkpoint, model_type=model_type, device=device, tile=tile, overlap=overlap)
+    raise ValueError(f"unknown segmenter: {kind}")
 
 
 class ClassicalSegmenter:
@@ -21,6 +60,7 @@ class ClassicalSegmenter:
 
     def __init__(self, min_dist: int = 8, min_area: int = 30):
         self.min_dist, self.min_area = min_dist, min_area
+        self.name = f"classical_d{min_dist}_a{min_area}"
 
     def segment(self, rgb):
         from skimage.feature import peak_local_max
@@ -63,6 +103,7 @@ class SamSegmenter:
         sam = sam_model_registry[model_type](checkpoint=checkpoint).to(device)
         self.gen = SamAutomaticMaskGenerator(sam, points_per_side=32, min_mask_region_area=50)
         self.tile, self.overlap = tile, overlap
+        self.name = f"sam_{model_type}_t{tile}_o{overlap}"
 
     def segment(self, rgb):
         H, W = rgb.shape[:2]
