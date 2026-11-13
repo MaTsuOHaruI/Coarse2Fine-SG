@@ -32,20 +32,30 @@ class CoarseResult:
         return CoarseResult(np.r_[self.b_mm, o.b_mm], np.r_[self.mass, o.mass],
                             np.r_[self.area_mm2, o.area_mm2], self.tray_mm2 + o.tray_mm2)
 
+    def above(self, dc: float) -> "CoarseResult":
+        """Only the grains with b >= dc (the ones the crossover says are resolved on every photo)."""
+        k = self.b_mm >= dc
+        return CoarseResult(self.b_mm[k], self.mass[k], self.area_mm2[k], self.tray_mm2)
+
     @property
     def n_eff(self) -> float:
         m = self.mass
         return float(m.sum() ** 2 / (m ** 2).sum()) if m.size else 0.0
 
     def G(self, dc: float) -> np.ndarray:
-        """Eq. (3): cumulative mass fraction over sieves >= dc (nan below)."""
+        """Eq. (3): cumulative mass fraction over sieves >= dc (nan below).
+        Pools only grains with b >= dc, so G(dc) is ~0 and G(200) = 1. (Fix: the MVP also pooled
+        grains between tau/rho and dc, e.g. 5.4 to 6.3 mm on training photos.)"""
         out = np.full(len(SIEVES), np.nan)
-        if not self.mass.size or not np.isfinite(dc):
+        if not np.isfinite(dc):
             return out
-        tot = self.mass.sum()
+        c = self.above(dc)
+        if not c.mass.size:
+            return out
+        tot = c.mass.sum()
         for i, x in enumerate(SIEVES):
             if x >= dc:
-                out[i] = self.mass[self.b_mm <= x].sum() / tot
+                out[i] = c.mass[c.b_mm <= x].sum() / tot
         return out
 
     def stats(self, min_mm: float):

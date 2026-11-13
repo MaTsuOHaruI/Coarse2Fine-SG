@@ -39,30 +39,37 @@ def colour_feats(rgb) -> np.ndarray:
 
 class SimpleEmbedder:
     """Placeholder for DINOv2: tiny colour-layout vector. Swap with Dinov2Embedder."""
+    name = "thumb4"
+
     def __call__(self, rgb):
         return cv2.resize(rgb, (4, 4), interpolation=cv2.INTER_AREA).astype(np.float32).ravel() / 255.0
 
 
 class Dinov2Embedder:
-    def __init__(self, name="dinov2_vits14", device="cpu"):
+    def __init__(self, name="dinov2_vits14", device="cpu", batch=64):
         import torch
         self.torch = torch
         self.m = torch.hub.load("facebookresearch/dinov2", name).to(device).eval()
-        self.device = device
+        self.device, self.batch, self.name = device, batch, name
 
     def __call__(self, rgb, tile=224):
-        t = self.torch
+        """Mean embedding over all full 224 px tiles. Tiles go through the model in batches
+        (same output as one at a time, much faster on a GPU)."""
+        torch = self.torch                       # fix: the MVP used a bare `torch` not imported here
         H, W = rgb.shape[:2]
+        tiles = [rgb[y:y + tile, x:x + tile]
+                 for y in range(0, max(H - tile, 0) + 1, tile)
+                 for x in range(0, max(W - tile, 0) + 1, tile)]
+        tiles = [p for p in tiles if p.shape[:2] == (tile, tile)]
+        mean = torch.tensor([.485, .456, .406])[:, None, None]
+        std = torch.tensor([.229, .224, .225])[:, None, None]
         embs = []
-        for y in range(0, max(H - tile, 0) + 1, tile):
-            for x in range(0, max(W - tile, 0) + 1, tile):
-                p = rgb[y:y + tile, x:x + tile]
-                if p.shape[:2] != (tile, tile): continue
-                x_ = (torch.from_numpy(p).float().permute(2, 0, 1) / 255 - torch.tensor([.485, .456, .406])[:, None, None]) \
-                     / torch.tensor([.229, .224, .225])[:, None, None]
-                with t.no_grad():
-                    embs.append(self.m(x_[None].to(self.device)).cpu().numpy()[0])
-        return np.mean(embs, 0)
+        for i in range(0, len(tiles), self.batch):
+            x_ = torch.stack([(torch.from_numpy(p).float().permute(2, 0, 1) / 255 - mean) / std
+                              for p in tiles[i:i + self.batch]])
+            with torch.no_grad():
+                embs.append(self.m(x_.to(self.device)).cpu().numpy())
+        return np.concatenate(embs).mean(0)
 
 
 def image_feats(rgb, embedder) -> np.ndarray:

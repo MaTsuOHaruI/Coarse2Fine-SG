@@ -42,4 +42,6 @@ class PathB:
         return clean_curve(100.0 * np.cumsum(pi))
 
     def mean_curve(self):
+        """Curve at z = 0: the centre of the training curves in clr space (a geometric mean).
+        Not the mean-curve baseline: that is baselines.mean_curve (arithmetic mean, LOSO 89.9 vs 92.1 for this)."""
         return clean_curve(100.0 * np.cumsum(softmax(self.pca.mean_)))

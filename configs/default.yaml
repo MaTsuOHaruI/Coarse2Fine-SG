@@ -1,0 +1,41 @@
+# Default configuration. Starting values, not tuned results.
+# Method values match the soilgsd.config.Config defaults (the values the first ridge result used);
+# anything set here overrides them. Paths are relative to the repository root unless absolute.
+# SOILGSD_DATA_DIR and SOILGSD_CACHE_DIR override the two paths below (used on Colab).
+
+seed: 0
+
+paths:
+  kaggle_dir: dataset
+  cache_dir: cache
+  runs_dir: runs
+
+metric:
+  form: left            # left | right | trapezoid
+
+preprocess:
+  tau_px: 25.0          # minimum grain width SAM can resolve
+  tray_crop_frac: 0.9   # centre crop standing in for tray detection
+  max_side: 4096        # downscale photos above this long side (rho rescaled)
+  tile_px: 1024
+  tile_overlap_px: 256
+
+sam:
+  model_type: vit_b
+  checkpoint: checkpoints/sam_vit_b_01ec64.pth   # relative to cache_dir (on Colab: the Drive cache)
+
+path_a:
+  solidity_min: 0.85
+  mass_exponent_p: 2.0  # mass = a * b**p
+  coarse_stats_floor_mm: 6.3
+
+path_b:
+  working_scale_px_per_mm: 4.6
+  pca_rank_r: 3         # 2 or 3, to tune in nested cross-validation
+  ridge_alpha: 10.0
+  dino_pca_dims: 8
+
+stitch:
+  kappa: 3.0
+  kappa_grid: [1, 3, 10, 30, 100]
+  blend_mode: adaptive  # adaptive | pure_b (w = 0) | hard (w = 1)

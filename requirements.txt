@@ -4,6 +4,7 @@ scikit-learn
 opencv-python
 scikit-image
 pandas
+pyyaml
 pillow
 # SAM / DINOv2 を使うときだけ
 # torch
