@@ -1,1 +1,5 @@
 run_name,date,config,commit,cv_emd,leaderboard_score,notes
+20261127_020959_loso_sam/mean_curve,2026-11-27,"segmenter=sam_vit_b_t1024_o256 embedder=thumb4 tau_px=25 mass_p=2 kappa=3 min_solidity=0.85 n_pca=3 ridge_alpha=10 crop=0.9 max_side=4096",2b92dfb,89.89,,LOSO 24 soils; reference
+20261127_020959_loso_sam/pure_b,2026-11-27,"segmenter=sam_vit_b_t1024_o256 embedder=thumb4 tau_px=25 mass_p=2 kappa=3 min_solidity=0.85 n_pca=3 ridge_alpha=10 crop=0.9 max_side=4096",2b92dfb,42.97,,LOSO 24 soils; Path B with SAM coarse stats
+20261127_020959_loso_sam/adaptive,2026-11-27,"segmenter=sam_vit_b_t1024_o256 embedder=thumb4 tau_px=25 mass_p=2 kappa=3 min_solidity=0.85 n_pca=3 ridge_alpha=10 crop=0.9 max_side=4096",2b92dfb,42.59,,LOSO 24 soils; d_c 6.3; kappa not tuned; 14 soils better / 9 worse than pure_b
+20261127_020959_loso_sam/hard,2026-11-27,"segmenter=sam_vit_b_t1024_o256 embedder=thumb4 tau_px=25 mass_p=2 kappa=3 min_solidity=0.85 n_pca=3 ridge_alpha=10 crop=0.9 max_side=4096",2b92dfb,42.57,,LOSO 24 soils; w = 1
