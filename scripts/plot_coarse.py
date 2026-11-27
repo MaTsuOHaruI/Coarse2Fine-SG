@@ -4,8 +4,9 @@ Both curves are conditional on the coarse fraction: the share (in %) of the mass
 passes each sieve. Path A gives this directly (CoarseResult.G); for the lab curve P it is
 (P - P(d_c)) / (100 - P(d_c)) * 100. Only grains with b >= d_c count, as in path_c.blend.
 
-Reads masks and features from the cache only (make_cache.py); it never runs a segmenter, so no
-SAM checkpoint or GPU is needed. A photo without cached masks stops the script.
+Reads masks from the cache only (make_cache.py); it never runs a segmenter, so no SAM checkpoint
+or GPU is needed. A photo without cached masks stops the script. A photo without cached features
+gets them computed on the CPU (thumbnail embedder) and written to the cache.
 
 Usage:  uv run python scripts/plot_coarse.py [--segmenter sam|classical] [--min-coarse-pct 5]
                                              [--limit N soils]
@@ -74,8 +75,9 @@ def summarise(x, curve_pct: np.ndarray, kappa: float) -> dict:
     return row, true_pct, pred_pct
 
 
-def plot_grid(items: list, title: str):
-    """items: [(row, true_pct (11,), pred_pct (11,))]. Returns a matplotlib Figure."""
+def plot_grid(items: list, title: str, segmenter: str = "SAM"):
+    """items: [(row, true_pct (11,), pred_pct (11,))]; segmenter names the masks in the legend.
+    Returns a matplotlib Figure."""
     n = len(items)
     cols = min(4, n)
     rows = int(np.ceil(n / cols))
@@ -84,7 +86,7 @@ def plot_grid(items: list, title: str):
         k = SIEVES >= row["dc_mm"]
         ax.plot(SIEVES[k], t[k], "k-o", ms=3, label="lab sieving")
         if np.isfinite(p[k]).any():
-            ax.plot(SIEVES[k], p[k], "-s", color="tab:green", ms=3, label="Path A (SAM grains)")
+            ax.plot(SIEVES[k], p[k], "-s", color="tab:green", ms=3, label=f"Path A ({segmenter} grains)")
         ax.set_xscale("log")
         ax.set_ylim(-5, 105)
         ax.set_title(f"{row[ID_COLUMN]}  ({row['coarse_mass_pct']:.0f} % > {row['dc_mm']:g} mm)", fontsize=9)
@@ -137,7 +139,7 @@ def main():
     if items:
         items.sort(key=lambda it: -it[0]["coarse_mass_pct"])
         fig = plot_grid(items, f"Coarse fraction above d_c: lab vs Path A ({seg.name}, tau {cfg.tau_px:g} px, "
-                               f"kappa {cfg.kappa:g})")
+                               f"kappa {cfg.kappa:g})", "SAM" if args.segmenter == "sam" else "classical")
         fig.savefig(run_dir / "coarse_curves.png", dpi=150)
     print(f"\n{len(items)} soils plotted | written to {run_dir}")
 
